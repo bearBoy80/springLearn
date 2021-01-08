@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+        xmlns="http://www.springframework.org/schema/beans"
+        xmlns:aop="http://www.springframework.org/schema/aop"
+        xmlns:context="http://www.springframework.org/schema/context"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.springframework.org/schema/beans
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/aop
+        https://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context
+        https://www.springframework.org/schema/context/spring-context.xsd">
+    <aop:aspectj-autoproxy/>
+
+    <bean id="echoService" class="com.github.bearboy80.spring.service.DefaultEchoService"/>
+
+    <bean id="echoServiceInterceptor" class="com.github.bearboy80.spring.Interceptor.MethodBeforeInterceptor"/>
+
+    <bean id="echoServiceFactoryBean" class="org.springframework.aop.framework.ProxyFactoryBean">
+        <property name="targetName" value="echoService"/>
+        <property name="interceptorNames">
+            <value>echoServiceInterceptor</value>
+        </property>
+        <property name="targetSource" ref="targetSource"/>
+    </bean>
+    <bean id="targetSource" class="org.springframework.aop.target.HotSwappableTargetSource">
+        <constructor-arg ref="echoService"/>
+    </bean>
+</beans>
