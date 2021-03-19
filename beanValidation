@@ -1,0 +1,132 @@
+# Bean Validation
+
+## Validation 校验实现
+
+1. 自定定义校验规则注解
+
+   ```java
+   import javax.validation.Constraint;
+   import javax.validation.Payload;
+   import java.lang.annotation.Retention;
+   import java.lang.annotation.RetentionPolicy;
+   import java.lang.annotation.Target;
+   
+   import static java.lang.annotation.ElementType.*;
+   
+   @Target({METHOD, FIELD, ANNOTATION_TYPE, CONSTRUCTOR, PARAMETER, TYPE_USE})
+   @Retention(RetentionPolicy.RUNTIME)
+   @Constraint(validatedBy = MobileValidAnnotationValidator.class)
+   public @interface MobileValid {
+       String message() default "";
+   
+       Class<?>[] groups() default {};
+   
+       Class<? extends Payload>[] payload() default {};
+   }
+   ```
+
+2. 实现javax.validation.ConstraintValidator接口
+
+   ```java
+   public class MobileValidAnnotationValidator implements ConstraintValidator<MobileValid, CharSequence> {
+   
+       public static final String REGEX_MOBILE = "((^(13|15|18)[0-9]{9}$)|(^0[1,2]{1}\\d{1}-?\\d{8}$)|(^0[3-9] {1}\\d{2}-?\\d{7,8}$)|(^0[1,2]{1}\\d{1}-?\\d{8}-(\\d{1,4})$)|(^0[3-9]{1}\\d{2}-? \\d{7,8}-(\\d{1,4})$))";
+   
+       private java.util.regex.Pattern pattern;
+   
+       @Override
+       public void initialize(MobileValid constraintAnnotation) {
+           this.pattern = Pattern.compile(REGEX_MOBILE);
+       }
+   
+       @Override
+       public boolean isValid(CharSequence value, ConstraintValidatorContext context) {
+           if (value == null) {
+               return false;
+           }
+           Matcher m = pattern.matcher(value);
+           return m.matches();
+       }
+   }
+   ```
+
+## 关键API
+
+1、javax.validation.Constraint  元数据注解----标注在目标校验注解上，来指定Bean Validation 校验器的实现
+
+2、javax.validation.ConstraintValidator 用于实现自定义校验  initialize方法用于获取注解相关元数据   isValid方法 用于校验逻辑处理
+
+3、javax.validation.ConstraintValidatorContext  校验器上下文用于错误提示国际化  getDefaultConstraintMessageTemplate方法获取错误文案
+
+4、javax.validation.MessageInterpolator 错误文件解释器
+
+5、javax.validation.ValidatorFactory  主要用于实例化Validation
+
+6、javax.validation.spi.Configuration  配置信息加载、组装MessageInterpolator 、通过代理方式实例化ValidatorFactory
+
+7、javax.validation.spi.ValidationProvider 创建ValidatorFactory
+
+# Spring Validation
+
+## 实现自定义数据校验
+
+1、继承 org.springframework.validation.Validator  实现supports、validate 方法
+
+## Spring  Validation 核心组件
+
+- 检验器：org.springframework.validation.Validator 
+- 错误收集器：org.springframework.validation.Errors 
+- Java Bean 错误描述：org.springframework.validation.ObjectError 
+- Java Bean 属性错误描述：org.springframework.validation.FieldError 
+- Bean Validation 适配：org.springframework.validation.beanvalidation.LocalValidatorFactoryBean
+
+## Spring MVC 整合Validation
+
+1、注册LocalValidatorFactoryBean、MethodValidationPostProcessor  两个bean
+
+```xml
+<bean id="validator" class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean">
+</bean>
+<bean class="org.springframework.validation.beanvalidation.MethodValidationPostProcessor">
+    <property name="validator" ref="validator"/>
+</bean>
+```
+
+2、添加注解 
+
+ - 使用@Validated注解（spring 基于jsr303 扩展实现） 可以用于类、方法、方法参数上面 ，支持分组校验、不支持嵌套验证，需要在嵌套内使用@Valid
+
+   比如某一场景需要验证id是否存在，如果是insert 就不需要校验，update 就需要校验，此时可以通过分组来实现
+
+- 使用@Valid 注解 (jsr 303 注解) 可以用于方法、方法参数、构造函数、字段属性，支持嵌套验证
+
+3、添加自定义Validation
+
+- 局部注册
+
+  ``` java
+  @Controller
+  public class MyController {
+      @InitBinder
+      protected void initBinder(WebDataBinder binder) {
+          binder.addValidators(new FooValidator());
+    }
+  }
+  ```
+  
+
+- 全局注册 -- 全局注册要把原来的默认的校验添加上去
+
+  ```java
+  @Configuration
+  @EnableWebMvc
+  public class WebConfig implements WebMvcConfigurer {
+  
+      @Override
+      public Validator getValidator() {
+          // 通过 LocalValidatorFactoryBean来操作
+      }
+  }
+  ```
+
+  
